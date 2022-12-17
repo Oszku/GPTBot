@@ -11,7 +11,7 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.content.startswith("$paste"):
+    if message.content.startswith("$paste "):
         arg = message.content[7:]
         response = openai.Completion.create(
         model="text-davinci-003",
@@ -22,6 +22,19 @@ async def on_message(message):
         frequency_penalty=0,
         presence_penalty=0
         )
-        await message.channel.send("```" + response['choices'][0]['text'] + "```")
+        numb = len(response['choices'][0]['text'])
+        text = response['choices'][0]['text']
+        if numb < 1:
+            await message.channel.send("No output")
+    
+        elif numb > 1950:
+            n = 1990
+            text = [text[i:i+n] for i in range(0, len(text), n)]
+
+            for i in range(len(text)):
+                await message.channel.send("```" + text[i] + "```") 
+    
+        else:
+            await message.channel.send("```" + text + "```")
 
 client.run(token)

@@ -1,40 +1,49 @@
 import openai
 import discord
-openai.api_key = "" # https://beta.openai.com/account/api-keys
-token = '' # https://discord.com/developers/applications
-client = discord.Client()
+from discord import app_commands, Intents, Client, Interaction
+openai.api_key = "" #https://beta.openai.com/account/api-keys
+token = "" #https://discord.com/developers/applications
+
+
+class ChatGPT(Client):
+
+    def __init__(self, *, intents: Intents):
+        super().__init__(intents=intents)
+        self.tree = app_commands.CommandTree(self)
+
+    async def setup_hook(self) -> None:
+        await self.tree.sync()
+
+client = ChatGPT(intents=Intents.none())
 
 @client.event
 async def on_ready():
     print ("Succesfully logged in as user {0.user}".format(client))
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="$paste"))
+    await client.change_presence(status=discord.Status.idle, activity=discord.Activity(type=discord.ActivityType.watching, name="a pasting stream"))
 
-@client.event
-async def on_message(message):
-    if message.content.startswith("$paste "):
-        arg = message.content[7:]
-        response = openai.Completion.create(
+
+@client.tree.command()
+@app_commands.describe(what_to_paste = "What would you want me to paste?")
+async def paste(interaction: Interaction, what_to_paste: str):
+
+    print(f">{interaction.user} wanted to paste something.")
+    await interaction.response.send_message(f"**Give me a sec, im pasting...**", ephemeral=True)
+
+    arg = what_to_paste
+    response = openai.Completion.create(
         model="text-davinci-003",
         prompt=arg,
         temperature=0.5,
-        max_tokens=800,
+        max_tokens=1200,
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0
-        )
-        numb = len(response['choices'][0]['text'])
-        text = response['choices'][0]['text']
-        if numb < 1:
-            await message.channel.send("No output")
-    
-        elif numb > 1950:
-            n = 1990
-            text = [text[i:i+n] for i in range(0, len(text), n)]
+    )
 
-            for i in range(len(text)):
-                await message.channel.send("```" + text[i] + "```") 
-    
-        else:
-            await message.channel.send("```" + text + "```")
+    text = response['choices'][0]['text']
+    chunks = [text[i:i + 1900] for i in range(0, len(text), 1900)]
+
+    for chunk in chunks:
+        await interaction.channel.send(f"**{interaction.user}** said: `{what_to_paste}`\n" + "```" + chunk + "```")
 
 client.run(token)
